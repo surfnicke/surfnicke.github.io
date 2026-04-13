@@ -103,6 +103,18 @@
             border-bottom: none;
         }
 
+        #downloadHistoryBtn {
+            background-color: #2c3e50;
+            color: white;
+            font-size: 14px;
+            padding: 8px 14px;
+            margin-top: 10px;
+        }
+
+        #downloadHistoryBtn:hover {
+            background-color: #1f2d3a;
+        }
+
         .emptyHistory {
             color: #777;
             font-style: italic;
@@ -127,17 +139,20 @@
         <div id="historySection">
             <h2>Historik</h2>
             <ul id="historyList"></ul>
+            <button id="downloadHistoryBtn" type="button">Ladda ner historik (.txt)</button>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const STORAGE_KEY = 'wateringLogEntries';
+            const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzkY1n5o32KKtXoiSnap9j8-kKXBPYmuAG-XP1Angiy_-SwAmzWmy1lXF-EZ_rf7MLZ/exec';
             const logWateringBtn = document.getElementById('logWateringBtn');
             const nameSelectionDiv = document.getElementById('nameSelection');
             const nameButtons = document.querySelectorAll('.nameBtn');
             const logMessageDiv = document.getElementById('logMessage');
             const historyList = document.getElementById('historyList');
+            const downloadHistoryBtn = document.getElementById('downloadHistoryBtn');
 
             const loadHistory = () => {
                 const rawHistory = localStorage.getItem(STORAGE_KEY);
@@ -155,6 +170,18 @@
 
             const saveHistory = (entries) => {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+            };
+
+            const syncEntryToGoogle = async (entry) => {
+                if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('PASTE_YOUR_DEPLOYED')) {
+                    return;
+                }
+
+                await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(entry)
+                });
             };
 
             const formatEntry = (entry) => {
@@ -183,6 +210,32 @@
                 });
             };
 
+            const buildHistoryText = (entries) => {
+                if (entries.length === 0) {
+                    return 'Ingen vattning loggad ännu.';
+                }
+
+                return entries.map((entry) => formatEntry(entry)).join('\n');
+            };
+
+            const downloadHistoryAsText = (entries) => {
+                const today = new Date();
+                const dateStamp = today.toISOString().slice(0, 10);
+                const fileName = `vattningshistorik-${dateStamp}.txt`;
+                const fileContent = `${buildHistoryText(entries)}\n`;
+                const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+                const downloadUrl = URL.createObjectURL(blob);
+                const tempLink = document.createElement('a');
+
+                tempLink.href = downloadUrl;
+                tempLink.download = fileName;
+                tempLink.style.display = 'none';
+                document.body.appendChild(tempLink);
+                tempLink.click();
+                document.body.removeChild(tempLink);
+                URL.revokeObjectURL(downloadUrl);
+            };
+
             let wateringHistory = loadHistory();
             renderHistory(wateringHistory);
 
@@ -192,25 +245,40 @@
                 logMessageDiv.textContent = ''; // Clear previous message
             });
 
-            nameButtons.forEach(button => {
-                button.addEventListener('click', (event) => {
+            nameButtons.forEach((button) => {
+                button.addEventListener('click', async (event) => {
                     const selectedName = event.target.dataset.name;
-                    const today = new Date();
-                    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-                    const formattedDate = today.toLocaleDateString('sv-SE', options); // Swedish date format
-                    const formattedTime = today.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+                    if (!selectedName) {
+                        return;
+                    }
 
-                    wateringHistory.unshift({
+                    const newEntry = {
                         name: selectedName,
-                        timestamp: today.toISOString()
-                    });
+                        timestamp: new Date().toISOString()
+                    };
+
+                    wateringHistory.unshift(newEntry);
                     saveHistory(wateringHistory);
                     renderHistory(wateringHistory);
 
+                    try {
+                        await syncEntryToGoogle(newEntry);
+                    } catch (error) {
+                        logMessageDiv.textContent = 'Vattning sparad lokalt, men Google-synk misslyckades.';
+                    }
+
+                    const latestEntry = wateringHistory[0];
+
                     nameSelectionDiv.style.display = 'none';
-                    logMessageDiv.textContent = ` ${selectedName} vattnade den ${formattedDate} kl. ${formattedTime}.`;
+                    logMessageDiv.textContent = latestEntry
+                        ? ` ${formatEntry(latestEntry)}`
+                        : `${selectedName} vattnade.`;
                     logWateringBtn.style.display = 'block'; // Show the main button again for new entry
                 });
+            });
+
+            downloadHistoryBtn.addEventListener('click', () => {
+                downloadHistoryAsText(wateringHistory);
             });
 
         });
