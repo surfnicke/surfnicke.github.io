@@ -103,18 +103,6 @@
             border-bottom: none;
         }
 
-        #clearHistoryBtn {
-            background-color: #c0392b;
-            color: white;
-            font-size: 14px;
-            padding: 8px 14px;
-            margin-top: 10px;
-        }
-
-        #clearHistoryBtn:hover {
-            background-color: #a93226;
-        }
-
         .emptyHistory {
             color: #777;
             font-style: italic;
@@ -139,7 +127,6 @@
         <div id="historySection">
             <h2>Historik</h2>
             <ul id="historyList"></ul>
-            <button id="clearHistoryBtn" type="button">Rensa historik</button>
         </div>
     </div>
 
@@ -151,7 +138,6 @@
             const nameButtons = document.querySelectorAll('.nameBtn');
             const logMessageDiv = document.getElementById('logMessage');
             const historyList = document.getElementById('historyList');
-            const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 
             const loadHistory = () => {
                 const rawHistory = localStorage.getItem(STORAGE_KEY);
@@ -227,12 +213,6 @@
                 });
             });
 
-            clearHistoryBtn.addEventListener('click', () => {
-                wateringHistory = [];
-                saveHistory(wateringHistory);
-                renderHistory(wateringHistory);
-                logMessageDiv.textContent = 'Historiken är rensad.';
-            });
         });
     </script>
 </body>
