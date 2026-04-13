@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tennis Court Watering Log</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+            padding-top: 50px;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 18px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            margin: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        #logWateringBtn {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        #logWateringBtn:hover {
+            background-color: #45a049;
+        }
+
+        .nameBtn {
+            background-color: #008CBA;
+            color: white;
+        }
+
+        .nameBtn:hover {
+            background-color: #007bb5;
+        }
+
+        #nameSelection p {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #555;
+        }
+
+        #logMessage {
+            color: #333;
+            font-size: 1.1em;
+            margin-top: 20px;
+        }
+
+        #historySection {
+            margin-top: 25px;
+            text-align: left;
+        }
+
+        #historySection h2 {
+            font-size: 18px;
+            margin: 0 0 10px;
+            color: #333;
+        }
+
+        #historyList {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        #historyList li {
+            padding: 10px 12px;
+            border-bottom: 1px solid #efefef;
+            font-size: 14px;
+            color: #333;
+        }
+
+        #historyList li:last-child {
+            border-bottom: none;
+        }
+
+        #clearHistoryBtn {
+            background-color: #c0392b;
+            color: white;
+            font-size: 14px;
+            padding: 8px 14px;
+            margin-top: 10px;
+        }
+
+        #clearHistoryBtn:hover {
+            background-color: #a93226;
+        }
+
+        .emptyHistory {
+            color: #777;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Det bästa sommarjobbet</h1>
+
+        <button id="logWateringBtn">Vattnat!</button>
+
+        <div id="nameSelection" style="display: none;">
+            <p>Vem vattnade?</p>
+            <button class="nameBtn" data-name="Hubert">Hubert</button>
+            <button class="nameBtn" data-name="Freja">Freja</button>
+            <button class="nameBtn" data-name="Wilgot">Wilgot</button>
+        </div>
+
+        <div id="logMessage"></div>
+
+        <div id="historySection">
+            <h2>Historik</h2>
+            <ul id="historyList"></ul>
+            <button id="clearHistoryBtn" type="button">Rensa historik</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const STORAGE_KEY = 'wateringLogEntries';
+            const logWateringBtn = document.getElementById('logWateringBtn');
+            const nameSelectionDiv = document.getElementById('nameSelection');
+            const nameButtons = document.querySelectorAll('.nameBtn');
+            const logMessageDiv = document.getElementById('logMessage');
+            const historyList = document.getElementById('historyList');
+            const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+
+            const loadHistory = () => {
+                const rawHistory = localStorage.getItem(STORAGE_KEY);
+                if (!rawHistory) {
+                    return [];
+                }
+
+                try {
+                    const parsed = JSON.parse(rawHistory);
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch (error) {
+                    return [];
+                }
+            };
+
+            const saveHistory = (entries) => {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+            };
+
+            const formatEntry = (entry) => {
+                const date = new Date(entry.timestamp);
+                const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                const formattedDate = date.toLocaleDateString('sv-SE', options);
+                const formattedTime = date.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+                return `${entry.name} vattnade den ${formattedDate} kl. ${formattedTime}.`;
+            };
+
+            const renderHistory = (entries) => {
+                historyList.innerHTML = '';
+
+                if (entries.length === 0) {
+                    const emptyItem = document.createElement('li');
+                    emptyItem.className = 'emptyHistory';
+                    emptyItem.textContent = 'Ingen vattning loggad ännu.';
+                    historyList.appendChild(emptyItem);
+                    return;
+                }
+
+                entries.forEach((entry) => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = formatEntry(entry);
+                    historyList.appendChild(listItem);
+                });
+            };
+
+            let wateringHistory = loadHistory();
+            renderHistory(wateringHistory);
+
+            logWateringBtn.addEventListener('click', () => {
+                logWateringBtn.style.display = 'none';
+                nameSelectionDiv.style.display = 'block';
+                logMessageDiv.textContent = ''; // Clear previous message
+            });
+
+            nameButtons.forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const selectedName = event.target.dataset.name;
+                    const today = new Date();
+                    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                    const formattedDate = today.toLocaleDateString('sv-SE', options); // Swedish date format
+                    const formattedTime = today.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+
+                    wateringHistory.unshift({
+                        name: selectedName,
+                        timestamp: today.toISOString()
+                    });
+                    saveHistory(wateringHistory);
+                    renderHistory(wateringHistory);
+
+                    nameSelectionDiv.style.display = 'none';
+                    logMessageDiv.textContent = ` ${selectedName} vattnade den ${formattedDate} kl. ${formattedTime}.`;
+                    logWateringBtn.style.display = 'block'; // Show the main button again for new entry
+                });
+            });
+
+            clearHistoryBtn.addEventListener('click', () => {
+                wateringHistory = [];
+                saveHistory(wateringHistory);
+                renderHistory(wateringHistory);
+                logMessageDiv.textContent = 'Historiken är rensad.';
+            });
+        });
+    </script>
+</body>
+</html>
