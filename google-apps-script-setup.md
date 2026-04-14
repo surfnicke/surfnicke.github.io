@@ -16,11 +16,10 @@ Use this to append each watering log entry to a Google Sheet (a file in Google D
 2. Replace code with:
 
 ```javascript
-function doPost(e) {
+function doGet(e) {
   try {
-    var payload = JSON.parse(e.postData.contents || '{}');
-    var timestamp = payload.timestamp || new Date().toISOString();
-    var name = payload.name || '';
+    var name = e.parameter.name || '';
+    var timestamp = e.parameter.timestamp || new Date().toISOString();
 
     if (!name) {
       return ContentService

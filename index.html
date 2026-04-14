@@ -177,11 +177,14 @@
                     return;
                 }
 
-                await fetch(GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(entry)
+                const params = new URLSearchParams({
+                    name: entry.name,
+                    timestamp: entry.timestamp
+                });
+
+                await fetch(`${GOOGLE_SCRIPT_URL}?${params.toString()}`, {
+                    method: 'GET',
+                    mode: 'no-cors'
                 });
             };
 
