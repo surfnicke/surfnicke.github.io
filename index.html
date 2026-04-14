@@ -119,10 +119,84 @@
             color: #777;
             font-style: italic;
         }
+
+        #lockScreen {
+            position: fixed;
+            inset: 0;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        #lockBox {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 280px;
+        }
+
+        #lockBox h2 {
+            margin: 0 0 20px;
+            color: #333;
+            font-size: 20px;
+        }
+
+        #lockError {
+            color: #c0392b;
+            font-size: 13px;
+            min-height: 18px;
+            margin-bottom: 8px;
+        }
+
+        #passwordInput {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            margin-bottom: 12px;
+        }
+
+        #passwordInput.shake {
+            animation: shake 0.3s ease;
+            border-color: #c0392b;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+
+        #unlockBtn {
+            background-color: #4CAF50;
+            color: white;
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        #unlockBtn:hover {
+            background-color: #45a049;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div id="lockScreen">
+        <div id="lockBox">
+            <h2>Ange lösenord</h2>
+            <input id="passwordInput" type="password" placeholder="Lösenord" autocomplete="current-password" />
+            <p id="lockError"></p>
+            <button id="unlockBtn" type="button">Lås upp</button>
+        </div>
+    </div>
+
+    <div class="container" id="appContainer" style="display: none;">
         <h1>Det bästa sommarjobbet</h1>
 
         <button id="logWateringBtn">Vattnat!</button>
@@ -145,6 +219,77 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const PASSWORD_HASH = 'e7111e6ca725551fe9ade54ef6b38d9aa7fd362d9ade85a984fd6e84ce04dbdd';
+            const MAX_ATTEMPTS = 5;
+            const LOCKOUT_MS = 30000;
+            const lockScreen = document.getElementById('lockScreen');
+            const appContainer = document.getElementById('appContainer');
+            const passwordInput = document.getElementById('passwordInput');
+            const unlockBtn = document.getElementById('unlockBtn');
+            const lockError = document.getElementById('lockError');
+
+            let failedAttempts = 0;
+            let lockedUntil = 0;
+
+            if (sessionStorage.getItem('unlocked') === '1') {
+                lockScreen.style.display = 'none';
+                appContainer.style.display = 'block';
+            }
+
+            const hashPassword = async (password) => {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(password);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                return Array.from(new Uint8Array(hashBuffer))
+                    .map((b) => b.toString(16).padStart(2, '0'))
+                    .join('');
+            };
+
+            const unlock = async () => {
+                const now = Date.now();
+
+                if (now < lockedUntil) {
+                    const secs = Math.ceil((lockedUntil - now) / 1000);
+                    lockError.textContent = `För många försök. Vänta ${secs}s.`;
+                    return;
+                }
+
+                const hash = await hashPassword(passwordInput.value);
+                passwordInput.value = '';
+
+                if (hash === PASSWORD_HASH) {
+                    sessionStorage.setItem('unlocked', '1');
+                    lockScreen.style.display = 'none';
+                    appContainer.style.display = 'block';
+                } else {
+                    failedAttempts++;
+                    passwordInput.classList.remove('shake');
+                    void passwordInput.offsetWidth;
+                    passwordInput.classList.add('shake');
+
+                    if (failedAttempts >= MAX_ATTEMPTS) {
+                        lockedUntil = Date.now() + LOCKOUT_MS;
+                        failedAttempts = 0;
+                        lockError.textContent = 'För många försök. Vänta 30s.';
+                    } else {
+                        lockError.textContent = `Fel lösenord. (${MAX_ATTEMPTS - failedAttempts} försök kvar)`;
+                    }
+
+                    passwordInput.focus();
+                }
+            };
+
+            unlockBtn.addEventListener('click', unlock);
+            passwordInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    unlock();
+                }
+            });
+
+            if (lockScreen.style.display !== 'none') {
+                passwordInput.focus();
+            }
+
             const STORAGE_KEY = 'wateringLogEntries';
             const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzkY1n5o32KKtXoiSnap9j8-kKXBPYmuAG-XP1Angiy_-SwAmzWmy1lXF-EZ_rf7MLZ/exec';
             const logWateringBtn = document.getElementById('logWateringBtn');
