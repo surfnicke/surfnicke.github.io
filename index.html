@@ -271,6 +271,8 @@
                         return;
                     }
 
+                    let syncSucceeded = false;
+
                     const newEntry = {
                         name: selectedName,
                         timestamp: new Date().toISOString()
@@ -282,16 +284,19 @@
 
                     try {
                         await syncEntryToGoogle(newEntry);
+                        syncSucceeded = true;
                     } catch (error) {
-                        logMessageDiv.textContent = 'Vattning sparad lokalt, men Google-synk misslyckades.';
+                        syncSucceeded = false;
                     }
 
                     const latestEntry = wateringHistory[0];
 
                     nameSelectionDiv.style.display = 'none';
-                    logMessageDiv.textContent = latestEntry
-                        ? ` ${formatEntry(latestEntry)}`
-                        : `${selectedName} vattnade.`;
+                    if (latestEntry) {
+                        logMessageDiv.textContent = `${formatEntry(latestEntry)} ${syncSucceeded ? 'Google-synk: OK.' : 'Google-synk: misslyckades.'}`;
+                    } else {
+                        logMessageDiv.textContent = `${selectedName} vattnade. ${syncSucceeded ? 'Google-synk: OK.' : 'Google-synk: misslyckades.'}`;
+                    }
                     logWateringBtn.style.display = 'block'; // Show the main button again for new entry
                 });
             });
