@@ -183,23 +183,10 @@
                     _: Date.now().toString()
                 });
 
-                await new Promise((resolve, reject) => {
-                    const beacon = new Image();
-                    const timeout = setTimeout(() => {
-                        reject(new Error('Google sync timed out'));
-                    }, 5000);
-
-                    beacon.onload = () => {
-                        clearTimeout(timeout);
-                        resolve();
-                    };
-
-                    beacon.onerror = () => {
-                        clearTimeout(timeout);
-                        reject(new Error('Google sync failed'));
-                    };
-
-                    beacon.src = `${GOOGLE_SCRIPT_URL}?${params.toString()}`;
+                await fetch(`${GOOGLE_SCRIPT_URL}?${params.toString()}`, {
+                    method: 'GET',
+                    mode: 'no-cors',
+                    cache: 'no-store'
                 });
             };
 
